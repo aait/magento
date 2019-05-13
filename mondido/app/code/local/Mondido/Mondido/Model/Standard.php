@@ -121,8 +121,6 @@ class Mondido_Mondido_Model_Standard extends Mage_Payment_Model_Method_Abstract
             
         $redirect_hash = $hash_algorithm($rh);
 
-        $items = array();
-
         // Meta Data
         $metadata = array();
 
@@ -131,7 +129,7 @@ class Mondido_Mondido_Model_Standard extends Mage_Payment_Model_Method_Abstract
 
         $baddr = Mage::getModel('sales/order_address')->load($metadata["order"]["billing_address_id"]);
         $country = Mage::getModel('directory/country')->loadByCode($baddr->getCountry());
-        
+
         $saddr =  Mage::getModel('sales/order_address')->load($metadata["order"]["shipping_address_id"]);
         // Customer Data
         $platform = array();
@@ -164,54 +162,37 @@ class Mondido_Mondido_Model_Standard extends Mage_Payment_Model_Method_Abstract
             $nProduct = Mage::getModel('catalog/product')->load(
                 $sItem->getProductId()
             );
-            
+
             $store = Mage::app()->getStore('default');
             $taxCalculation = Mage::getModel('tax/calculation');
             $request = $taxCalculation->getRateRequest(null, null, null, $store);
             $taxClassId = $nProduct->getTaxClassId();
             $percent = $taxCalculation->getRate($request->setProductClassId($taxClassId));
             $prc = $percent / 100;
-            
-            
+
            $prod_arr = $nProduct->getData();
            $prod_arr['product_extra_description'] = '';
            $prod_arr['size_chart'] = '';
-           
+
            $ws = '/\s+/';
            $ds = '/\\t|\\r|\\n]+|<[^>]*>/';
            $prod_arr['description'] = preg_replace($ds, '', $prod_arr['description']);
            $prod_arr['short_description'] = preg_replace($ds, '', $prod_arr['short_description']);
            $prod_arr['description'] = preg_replace($ws, ' ', $prod_arr['description']);
            $prod_arr['short_description'] = preg_replace($ws, ' ', $prod_arr['short_description']);
-           
+
            $imageUrl = Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA) . 'catalog/product' . $nProduct->getImage();
            $prod_arr['image'] = $imageUrl;
-           
+
            $_priceTax = Mage::helper('tax')->getPrice( $sItem, $sItem->getPrice());
            $_specialPriceIncTax = $_priceTax *  (1+ $prc);
            $qty = $sItem->getQtyOrdered();
            $tot_amount = $qty * $_specialPriceIncTax;
            $vat_amount = $vat_amount + $tot_amount;
-           
-           $item = array(
-               'artno' => $prod_arr['sku'],
-               'description' => $prod_arr['name'],
-               'amount' => $tot_amount,
-               'qty' => $qty ,
-               'vat' => $percent,
-               'discount' => '0.00');
-            
+
            array_push($prods, $prod_arr);
-           array_push($items, $item);
         }
-        $item = array(
-               'artno' => 'shipping',
-               'description' => 'Shipping',
-               'amount' => $order['base_shipping_amount'],
-               'qty' => 1,
-               'vat' => '0.00',
-               'discount' => '0.00');
-        array_push($items, $item);
+
         $metadata['products'] = $prods;
 
         //Return Data
@@ -226,7 +207,7 @@ class Mondido_Mondido_Model_Standard extends Mage_Payment_Model_Method_Abstract
             'test' => (($test == 1) ? "true" : "false"),
             'metadata' => $metadata,
             'redirect_hash' => $redirect_hash,
-            'items' => $items,
+            'items' => Mage::helper('mondido')->getOrderItems($order),
             'vat_amount' => $vat_amount
         );
     }
